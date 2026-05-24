@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\GeocodeController;
 use App\Http\Controllers\MapCollectionController;
 use App\Http\Controllers\PointController;
 use Illuminate\Support\Facades\Route;
@@ -20,6 +21,9 @@ Route::middleware('guest')->group(function () {
 
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+
+    Route::get('geocode/search', [GeocodeController::class, 'search'])
+        ->name('geocode.search');
 
     Route::resource('collections', MapCollectionController::class);
 

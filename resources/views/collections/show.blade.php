@@ -20,7 +20,7 @@
                 <li><a class="dropdown-item" href="{{ route('collections.export', [$collection, 'csv']) }}">Export as CSV</a></li>
             </ul>
         </div>
-        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#pointModal" id="btnAddPoint">
+        <button type="button" class="btn btn-primary" id="btnAddPoint">
             <i class="bi bi-plus-lg"></i> Add Point
         </button>
         <a href="{{ route('collections.edit', $collection) }}" class="btn btn-outline-secondary">
@@ -142,7 +142,7 @@
 
 {{-- Point Modal --}}
 <div class="modal fade" id="pointModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <form id="pointForm">
                 <div class="modal-header">
@@ -151,22 +151,50 @@
                 </div>
                 <div class="modal-body">
                     <input type="hidden" id="pointId" value="">
+
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label class="form-label">Point Name</label>
                             <input type="text" name="name" id="pointName" class="form-control" required>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Search Location</label>
+                            <div class="position-relative">
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                    <input type="text" id="locationSearch" class="form-control"
+                                           placeholder="Search address, city, landmark..." autocomplete="off">
+                                    <button type="button" class="btn btn-outline-secondary" id="btnUseMyLocation" title="Use my current location">
+                                        <i class="bi bi-crosshair"></i>
+                                    </button>
+                                </div>
+                                <div id="locationSearchResults" class="list-group location-search-results d-none"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card mt-3 border">
+                        <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center">
+                            <span class="small fw-semibold"><i class="bi bi-geo-alt"></i> Pick location on map</span>
+                            <span class="badge bg-primary" id="pickModeBadge">Click map or drag marker</span>
+                        </div>
+                        <div class="card-body p-2">
+                            <div id="pickerMap"></div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mt-1">
+                        <div class="col-md-6">
                             <label class="form-label">Latitude</label>
                             <input type="number" name="lat" id="pointLat" class="form-control" step="any" min="-90" max="90" required>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-6">
                             <label class="form-label">Longitude</label>
                             <input type="number" name="lng" id="pointLng" class="form-control" step="any" min="-180" max="180" required>
                         </div>
                     </div>
-                    <hr>
-                    <p class="small text-muted mb-2">Click on the map to set coordinates, or enter them manually.</p>
+
+                    <hr class="my-3">
                     <div id="dynamicAttributeFields" class="row g-3">
                         @foreach($collection->attributes as $attribute)
                             <div class="col-md-6 dynamic-field" data-attribute-id="{{ $attribute->id }}" data-type="{{ $attribute->type }}">
@@ -185,7 +213,7 @@
                         @endforeach
                     </div>
                     @if($collection->attributes->isEmpty())
-                        <p class="text-muted small mb-0" id="modalNoAttrs">Add custom attributes above to capture extra data per point.</p>
+                        <p class="text-muted small mb-0 mt-2" id="modalNoAttrs">Add custom attributes above to capture extra data per point.</p>
                     @endif
                 </div>
                 <div class="modal-footer">
@@ -198,14 +226,41 @@
 </div>
 @endsection
 
+@push('styles')
+<style>
+    #pickerMap { height: 320px; border-radius: .375rem; z-index: 0; }
+    .location-search-results {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        z-index: 1060;
+        max-height: 220px;
+        overflow-y: auto;
+        box-shadow: 0 .5rem 1rem rgba(0,0,0,.15);
+    }
+    .location-search-results .list-group-item {
+        cursor: pointer;
+        font-size: .875rem;
+    }
+    .location-search-results .list-group-item:hover {
+        background-color: #f8f9fa;
+    }
+</style>
+@endpush
+
 @push('scripts')
 <script>
 (function () {
-    const collectionId = {{ $collection->id }};
     const attributes = @json($collection->attributes->map(fn ($a) => ['id' => $a->id, 'name' => $a->name, 'type' => $a->type]));
     let pointsData = @json($pointsForMap);
     let map, markersLayer;
-    let pickMode = false;
+    let pickerMap, pickerMarker, pickerMapReady = false;
+    let searchTimer = null;
+
+    const defaultCenter = pointsData.length
+        ? [pointsData[0].lat, pointsData[0].lng]
+        : [20.5937, 78.9629];
 
     const urls = {
         storePoint: @json(route('collections.points.store', $collection)),
@@ -213,13 +268,10 @@
         deletePoint: (id) => @json(url('/collections/'.$collection->id.'/points/__ID__')).replace('__ID__', id),
         storeAttribute: @json(route('collections.attributes.store', $collection)),
         deleteAttribute: (id) => @json(url('/collections/'.$collection->id.'/attributes/__ID__')).replace('__ID__', id),
+        geocodeSearch: @json(route('geocode.search')),
     };
 
     function initMap() {
-        const defaultCenter = pointsData.length
-            ? [pointsData[0].lat, pointsData[0].lng]
-            : [20.5937, 78.9629];
-
         map = L.map('map').setView(defaultCenter, pointsData.length ? 12 : 5);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap contributors'
@@ -227,12 +279,105 @@
 
         markersLayer = L.layerGroup().addTo(map);
         renderMarkers();
+    }
 
-        map.on('click', function (e) {
-            if (!$('#pointModal').hasClass('show')) return;
-            $('#pointLat').val(e.latlng.lat.toFixed(8));
-            $('#pointLng').val(e.latlng.lng.toFixed(8));
+    function initPickerMap() {
+        if (pickerMapReady) {
+            return;
+        }
+
+        pickerMap = L.map('pickerMap', { zoomControl: true }).setView(defaultCenter, pointsData.length ? 14 : 5);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap'
+        }).addTo(pickerMap);
+
+        pickerMarker = L.marker(defaultCenter, { draggable: true }).addTo(pickerMap);
+
+        pickerMarker.on('dragend', function () {
+            const pos = pickerMarker.getLatLng();
+            updateCoordinateInputs(pos.lat, pos.lng, false);
         });
+
+        pickerMap.on('click', function (e) {
+            setPickerLocation(e.latlng.lat, e.latlng.lng, false);
+        });
+
+        pickerMapReady = true;
+    }
+
+    function updateCoordinateInputs(lat, lng, panMap) {
+        $('#pointLat').val(parseFloat(lat).toFixed(8));
+        $('#pointLng').val(parseFloat(lng).toFixed(8));
+
+        if (pickerMarker) {
+            pickerMarker.setLatLng([lat, lng]);
+        }
+
+        if (panMap && pickerMap) {
+            pickerMap.setView([lat, lng], Math.max(pickerMap.getZoom(), 15));
+        }
+    }
+
+    function setPickerLocation(lat, lng, panMap) {
+        updateCoordinateInputs(lat, lng, panMap);
+        $('#pickModeBadge').text('Location selected').removeClass('bg-secondary').addClass('bg-success');
+    }
+
+    function resetLocationPicker() {
+        $('#locationSearch').val('');
+        hideSearchResults();
+        $('#pickModeBadge').text('Click map or drag marker').removeClass('bg-success').addClass('bg-primary');
+
+        const lat = parseFloat($('#pointLat').val());
+        const lng = parseFloat($('#pointLng').val());
+
+        if (pickerMapReady) {
+            if (!isNaN(lat) && !isNaN(lng)) {
+                setPickerLocation(lat, lng, true);
+            } else {
+                pickerMap.setView(defaultCenter, pointsData.length ? 14 : 5);
+                pickerMarker.setLatLng(defaultCenter);
+                updateCoordinateInputs(defaultCenter[0], defaultCenter[1], false);
+            }
+        }
+    }
+
+    function hideSearchResults() {
+        $('#locationSearchResults').addClass('d-none').empty();
+    }
+
+    function renderSearchResults(results) {
+        const $list = $('#locationSearchResults').empty();
+
+        if (!results.length) {
+            $list.append('<div class="list-group-item text-muted">No locations found</div>');
+        } else {
+            results.forEach(function (item) {
+                const $item = $('<button type="button" class="list-group-item list-group-item-action"></button>');
+                $item.text(item.display_name);
+                $item.on('click', function () {
+                    $('#locationSearch').val(item.display_name);
+                    hideSearchResults();
+                    setPickerLocation(item.lat, item.lng, true);
+                    if (!$('#pointName').val()) {
+                        $('#pointName').val(item.display_name.split(',')[0].trim());
+                    }
+                });
+                $list.append($item);
+            });
+        }
+
+        $list.removeClass('d-none');
+    }
+
+    function searchLocation(query) {
+        $.get(urls.geocodeSearch, { q: query })
+            .done(function (res) {
+                renderSearchResults(res.results || []);
+            })
+            .fail(function () {
+                renderSearchResults([]);
+            });
     }
 
     function renderMarkers() {
@@ -348,7 +493,7 @@
         $('#modalNoAttrs').remove();
 
         if (!attributes.length) {
-            $container.after('<p class="text-muted small mb-0" id="modalNoAttrs">Add custom attributes above to capture extra data per point.</p>');
+            $container.after('<p class="text-muted small mb-0 mt-2" id="modalNoAttrs">Add custom attributes above to capture extra data per point.</p>');
             return;
         }
 
@@ -372,33 +517,109 @@
         });
     }
 
+    function openPointModal(mode, data) {
+        $('#pointModalTitle').text(mode === 'edit' ? 'Edit Point' : 'Add Point');
+        $('#pointSubmitBtn').text(mode === 'edit' ? 'Update Point' : 'Save Point');
+        $('#pointId').val(data.id || '');
+        $('#pointName').val(data.name || '');
+        $('#pointLat').val(data.lat || '');
+        $('#pointLng').val(data.lng || '');
+        $('#locationSearch').val('');
+        hideSearchResults();
+        rebuildDynamicFields(data.values || {});
+
+        const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('pointModal'));
+        modal.show();
+    }
+
     $('#btnAddPoint').on('click', function () {
-        $('#pointModalTitle').text('Add Point');
-        $('#pointId').val('');
-        $('#pointForm')[0].reset();
-        rebuildDynamicFields({});
-        $('#pointSubmitBtn').text('Save Point');
+        openPointModal('add', {});
     });
 
     $(document).on('click', '.edit-point', function () {
         const $row = $(this).closest('tr');
-        $('#pointModalTitle').text('Edit Point');
-        $('#pointId').val($row.data('point-id'));
-        $('#pointName').val($row.data('name'));
-        $('#pointLat').val($row.data('lat'));
-        $('#pointLng').val($row.data('lng'));
-
         const values = {};
         attributes.forEach(function (attr) {
             values[attr.id] = { value: $row.data('attr-' + attr.id) };
         });
-        rebuildDynamicFields(values);
-        $('#pointSubmitBtn').text('Update Point');
-        new bootstrap.Modal('#pointModal').show();
+
+        openPointModal('edit', {
+            id: $row.data('point-id'),
+            name: $row.data('name'),
+            lat: $row.data('lat'),
+            lng: $row.data('lng'),
+            values: values,
+        });
+    });
+
+    $('#locationSearch').on('input', function () {
+        const query = $(this).val().trim();
+        clearTimeout(searchTimer);
+
+        if (query.length < 2) {
+            hideSearchResults();
+            return;
+        }
+
+        searchTimer = setTimeout(function () {
+            searchLocation(query);
+        }, 400);
+    });
+
+    $('#locationSearch').on('keydown', function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const query = $(this).val().trim();
+            if (query.length >= 2) {
+                searchLocation(query);
+            }
+        }
+    });
+
+    $(document).on('click', function (e) {
+        if (!$(e.target).closest('#locationSearch, #locationSearchResults').length) {
+            hideSearchResults();
+        }
+    });
+
+    $('#btnUseMyLocation').on('click', function () {
+        const $btn = $(this);
+        if (!navigator.geolocation) {
+            alert('Geolocation is not supported by your browser.');
+            return;
+        }
+
+        $btn.prop('disabled', true);
+        navigator.geolocation.getCurrentPosition(
+            function (position) {
+                setPickerLocation(position.coords.latitude, position.coords.longitude, true);
+                $('#locationSearch').val('Current location');
+                $btn.prop('disabled', false);
+            },
+            function () {
+                alert('Unable to retrieve your location. Please allow location access or search manually.');
+                $btn.prop('disabled', false);
+            },
+            { enableHighAccuracy: true, timeout: 10000 }
+        );
+    });
+
+    $('#pointLat, #pointLng').on('change', function () {
+        const lat = parseFloat($('#pointLat').val());
+        const lng = parseFloat($('#pointLng').val());
+        if (!isNaN(lat) && !isNaN(lng) && pickerMapReady) {
+            setPickerLocation(lat, lng, true);
+        }
     });
 
     $('#pointForm').on('submit', function (e) {
         e.preventDefault();
+
+        if (!$('#pointLat').val() || !$('#pointLng').val()) {
+            alert('Please search or pick a location on the map.');
+            return;
+        }
+
         const pointId = $('#pointId').val();
         const url = pointId ? urls.updatePoint(pointId) : urls.storePoint;
         const method = pointId ? 'PUT' : 'POST';
@@ -418,21 +639,6 @@
                     $('#pointsTable tbody').append(buildRowHtml(res.point));
                 }
 
-                pointsData = [];
-                $('#pointsTable tbody tr').each(function () {
-                    const p = {
-                        id: res.point.id,
-                        name: res.point.name,
-                        lat: res.point.lat,
-                        lng: res.point.lng,
-                        attributes: {}
-                    };
-                    if (res.point.id !== pointId || !pointId) {
-                        // rebuild from response for updated/new row
-                    }
-                });
-
-                // Update pointsData from table
                 refreshPointsDataFromTable();
             },
             error: function (xhr) {
@@ -523,7 +729,15 @@
     });
 
     $('#pointModal').on('shown.bs.modal', function () {
-        map.invalidateSize();
+        initPickerMap();
+        setTimeout(function () {
+            pickerMap.invalidateSize();
+            resetLocationPicker();
+        }, 200);
+    });
+
+    $('#pointModal').on('hidden.bs.modal', function () {
+        hideSearchResults();
     });
 })();
 </script>
