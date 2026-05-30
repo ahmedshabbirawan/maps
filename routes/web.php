@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\AttributeController;
 use App\Http\Controllers\GeocodeController;
 use App\Http\Controllers\MapCollectionController;
 use App\Http\Controllers\PointController;
@@ -27,11 +28,19 @@ Route::middleware('auth')->group(function () {
 
     Route::resource('collections', MapCollectionController::class);
 
-    Route::post('collections/{collection}/attributes', [MapCollectionController::class, 'storeAttribute'])
+    Route::get('collections/{collection}/attributes', [AttributeController::class, 'index'])
+        ->name('collections.attributes.index');
+    Route::post('collections/{collection}/attributes', [AttributeController::class, 'store'])
         ->name('collections.attributes.store');
-    Route::delete('collections/{collection}/attributes/{attribute}', [MapCollectionController::class, 'destroyAttribute'])
+    Route::put('collections/{collection}/attributes/{attribute}', [AttributeController::class, 'update'])
+        ->name('collections.attributes.update');
+    Route::delete('collections/{collection}/attributes/{attribute}', [AttributeController::class, 'destroy'])
         ->name('collections.attributes.destroy');
+    Route::patch('collections/{collection}/attributes/{attribute}/visibility', [AttributeController::class, 'toggleVisibility'])
+        ->name('collections.attributes.visibility');
 
+    Route::get('collections/{collection}/points', [PointController::class, 'index'])
+        ->name('collections.points.index');
     Route::post('collections/{collection}/points', [PointController::class, 'store'])
         ->name('collections.points.store');
     Route::put('collections/{collection}/points/{point}', [PointController::class, 'update'])

@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Attribute;
 use App\Models\Collection;
+use App\Services\PointAttributeFilter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -14,6 +14,10 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class MapCollectionController extends Controller
 {
+    public function __construct(
+        protected PointAttributeFilter $attributeFilter
+    ) {}
+
     public function index(): View
     {
         $collections = Auth::user()
@@ -50,12 +54,14 @@ class MapCollectionController extends Controller
 
         $collection->load([
             'attributes' => fn ($query) => $query->orderBy('name'),
-            'points.values.attribute',
+            'points.attributeValues.attribute',
         ]);
 
-        $pointsForMap = $collection->points->map(function ($point) use ($collection) {
+        $visibleAttributes = $collection->attributes->where('is_visible', true);
+
+        $pointsForMap = $collection->points->map(function ($point) use ($visibleAttributes) {
             $attributes = [];
-            foreach ($collection->attributes as $attribute) {
+            foreach ($visibleAttributes as $attribute) {
                 $attributes[$attribute->name] = $point->valueForAttribute($attribute->id);
             }
 
@@ -68,9 +74,39 @@ class MapCollectionController extends Controller
             ];
         });
 
+        $filterableAttributes = $collection->attributes->map(fn ($a) => [
+            'id' => $a->id,
+            'name' => $a->name,
+            'slug' => $a->slug,
+            'type' => $a->type,
+            'is_visible' => $a->is_visible,
+        ])->values();
+
+        $allAttributesForJs = $collection->attributes->map(fn ($a) => [
+            'id' => $a->id,
+            'name' => $a->name,
+            'slug' => $a->slug,
+            'type' => $a->type,
+            'is_visible' => $a->is_visible,
+        ])->values();
+
+        $visibleAttributesForJs = $visibleAttributes->map(fn ($a) => [
+            'id' => $a->id,
+            'name' => $a->name,
+            'type' => $a->type,
+        ])->values();
+
         $sidebarCollections = Auth::user()->collections()->orderBy('name')->get();
 
-        return view('collections.show', compact('collection', 'pointsForMap', 'sidebarCollections'));
+        return view('collections.show', compact(
+            'collection',
+            'pointsForMap',
+            'visibleAttributes',
+            'filterableAttributes',
+            'allAttributesForJs',
+            'visibleAttributesForJs',
+            'sidebarCollections'
+        ));
     }
 
     public function edit(Collection $collection): View
@@ -107,51 +143,21 @@ class MapCollectionController extends Controller
             ->with('success', 'Collection deleted successfully.');
     }
 
-    public function storeAttribute(Request $request, Collection $collection): RedirectResponse|JsonResponse
+    public function export(Request $request, Collection $collection, string $format = 'json'): JsonResponse|Response|StreamedResponse
     {
         $this->authorizeCollection($collection);
 
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'type' => ['required', 'in:string,number,boolean'],
-        ]);
+        $collection->load(['attributes' => fn ($q) => $q->orderBy('name')]);
 
-        $attribute = $collection->attributes()->create($validated);
+        $visibleAttributes = $collection->attributes->where('is_visible', true);
 
-        if ($request->expectsJson()) {
-            return response()->json([
-                'success' => true,
-                'attribute' => $attribute,
-            ]);
-        }
+        $query = $collection->points()
+            ->with(['attributeValues'])
+            ->orderBy('name');
 
-        return back()->with('success', 'Attribute added successfully.');
-    }
+        $this->attributeFilter->apply($query, $collection, $request);
 
-    public function destroyAttribute(Collection $collection, Attribute $attribute): RedirectResponse|JsonResponse
-    {
-        $this->authorizeCollection($collection);
-
-        if ($attribute->collection_id !== $collection->id) {
-            abort(404);
-        }
-
-        $attribute->delete();
-
-        if (request()->expectsJson()) {
-            return response()->json(['success' => true]);
-        }
-
-        return back()->with('success', 'Attribute removed successfully.');
-    }
-
-    public function export(Collection $collection, string $format = 'json'): Response|StreamedResponse
-    {
-        $this->authorizeCollection($collection);
-
-        $collection->load(['attributes', 'points.values']);
-
-        $rows = $collection->points->map(function ($point) use ($collection) {
+        $rows = $query->get()->map(function ($point) use ($visibleAttributes) {
             $row = [
                 'id' => $point->id,
                 'name' => $point->name,
@@ -159,7 +165,7 @@ class MapCollectionController extends Controller
                 'lng' => (float) $point->lng,
             ];
 
-            foreach ($collection->attributes as $attribute) {
+            foreach ($visibleAttributes as $attribute) {
                 $row[$attribute->name] = $point->valueForAttribute($attribute->id);
             }
 
@@ -169,12 +175,12 @@ class MapCollectionController extends Controller
         $filename = str($collection->name)->slug().'-'.now()->format('Y-m-d');
 
         if ($format === 'csv') {
-            return response()->streamDownload(function () use ($rows, $collection) {
+            return response()->streamDownload(function () use ($rows, $visibleAttributes) {
                 $handle = fopen('php://output', 'w');
 
                 $headers = array_merge(
                     ['id', 'name', 'lat', 'lng'],
-                    $collection->attributes->pluck('name')->all()
+                    $visibleAttributes->pluck('name')->all()
                 );
                 fputcsv($handle, $headers);
 

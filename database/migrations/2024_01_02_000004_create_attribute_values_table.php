@@ -8,20 +8,22 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('point_values', function (Blueprint $table) {
+        Schema::create('attribute_values', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('point_id')->constrained()->cascadeOnDelete();
             $table->foreignId('attribute_id')->constrained('attributes')->cascadeOnDelete();
+            $table->string('entity_type');
+            $table->unsignedBigInteger('entity_id');
             $table->text('value')->nullable();
             $table->timestamps();
 
-            $table->unique(['point_id', 'attribute_id']);
-            $table->index('attribute_id');
+            $table->unique(['attribute_id', 'entity_type', 'entity_id']);
+            $table->index(['entity_type', 'entity_id']);
+            $table->index(['attribute_id', 'value']);
         });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('point_values');
+        Schema::dropIfExists('attribute_values');
     }
 };

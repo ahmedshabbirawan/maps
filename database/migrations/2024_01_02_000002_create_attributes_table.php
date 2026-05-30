@@ -12,10 +12,14 @@ return new class extends Migration
             $table->id();
             $table->foreignId('collection_id')->constrained()->cascadeOnDelete();
             $table->string('name');
-            $table->enum('type', ['string', 'number', 'boolean'])->default('string');
+            $table->string('slug');
+            $table->enum('type', ['string', 'number', 'date', 'boolean'])->default('string');
+            $table->boolean('is_visible')->default(true);
             $table->timestamps();
 
-            $table->index(['collection_id', 'name']);
+            $table->unique(['collection_id', 'slug']);
+            $table->index(['collection_id', 'is_visible']);
+            $table->index(['collection_id', 'type']);
         });
     }
 

@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AttributeValue;
 use App\Models\Collection;
 use App\Models\Point;
+use App\Services\PointAttributeFilter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -12,6 +14,35 @@ use Illuminate\Support\Facades\DB;
 
 class PointController extends Controller
 {
+    public function __construct(
+        protected PointAttributeFilter $attributeFilter
+    ) {}
+
+    public function index(Request $request, Collection $collection): JsonResponse
+    {
+        $this->authorizeCollection($collection);
+
+        $collection->load(['attributes' => fn ($q) => $q->orderBy('name')]);
+
+        $query = $collection->points()
+            ->with(['attributeValues.attribute'])
+            ->orderBy('name');
+
+        $this->attributeFilter->apply($query, $collection, $request);
+
+        $visibleAttributes = $collection->attributes->where('is_visible', true);
+
+        $points = $query->get()->map(
+            fn (Point $point) => $this->formatPoint($point, $visibleAttributes)
+        );
+
+        return response()->json([
+            'success' => true,
+            'points' => $points,
+            'count' => $points->count(),
+        ]);
+    }
+
     public function store(Request $request, Collection $collection): RedirectResponse|JsonResponse
     {
         $this->authorizeCollection($collection);
@@ -27,13 +58,13 @@ class PointController extends Controller
 
             $this->syncAttributeValues($point, $collection, $request->input('attributes', []));
 
-            return $point->load('values.attribute');
+            return $point->load('attributeValues.attribute');
         });
 
         if ($request->expectsJson()) {
             return response()->json([
                 'success' => true,
-                'point' => $this->formatPoint($point, $collection),
+                'point' => $this->formatPoint($point, $collection->attributes),
             ]);
         }
 
@@ -57,12 +88,12 @@ class PointController extends Controller
             $this->syncAttributeValues($point, $collection, $request->input('attributes', []));
         });
 
-        $point->load('values.attribute');
+        $point->load('attributeValues.attribute');
 
         if ($request->expectsJson()) {
             return response()->json([
                 'success' => true,
-                'point' => $this->formatPoint($point, $collection),
+                'point' => $this->formatPoint($point, $collection->attributes),
             ]);
         }
 
@@ -96,6 +127,7 @@ class PointController extends Controller
             $rules[$key] = match ($attribute->type) {
                 'number' => ['nullable', 'numeric'],
                 'boolean' => ['nullable', 'boolean'],
+                'date' => ['nullable', 'date'],
                 default => ['nullable', 'string', 'max:65535'],
             };
         }
@@ -113,26 +145,30 @@ class PointController extends Controller
                     ? '1'
                     : '0';
             } elseif ($value === null || $value === '') {
-                $point->values()->where('attribute_id', $attribute->id)->delete();
+                $point->attributeValues()->where('attribute_id', $attribute->id)->delete();
 
                 continue;
             }
 
-            $point->values()->updateOrCreate(
+            $point->attributeValues()->updateOrCreate(
                 ['attribute_id' => $attribute->id],
-                ['value' => (string) $value]
+                ['value' => AttributeValue::serializeValue($attribute, $value)]
             );
         }
     }
 
-    protected function formatPoint(Point $point, Collection $collection): array
+    protected function formatPoint(Point $point, $attributes): array
     {
-        $attributes = [];
-        foreach ($collection->attributes as $attribute) {
-            $attributes[$attribute->id] = [
+        $attributeData = [];
+
+        foreach ($attributes as $attribute) {
+            $raw = $point->valueForAttribute($attribute->id);
+            $attributeData[$attribute->id] = [
                 'name' => $attribute->name,
+                'slug' => $attribute->slug,
                 'type' => $attribute->type,
-                'value' => $point->valueForAttribute($attribute->id),
+                'is_visible' => $attribute->is_visible,
+                'value' => $raw,
             ];
         }
 
@@ -141,7 +177,7 @@ class PointController extends Controller
             'name' => $point->name,
             'lat' => (float) $point->lat,
             'lng' => (float) $point->lng,
-            'attributes' => $attributes,
+            'attributes' => $attributeData,
         ];
     }
 
