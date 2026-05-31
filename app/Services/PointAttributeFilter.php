@@ -15,6 +15,10 @@ class PointAttributeFilter
      */
     public function apply(Builder|Relation $query, Collection $collection, Request $request): Builder|Relation
     {
+        if ($request->filled('name')) {
+            $query->where('name', 'like', '%'.$request->input('name').'%');
+        }
+
         $filters = $this->normalizeFilters($request);
 
         foreach ($filters as $filter) {

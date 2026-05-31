@@ -3,15 +3,12 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AttributeController;
 use App\Http\Controllers\GeocodeController;
+use App\Http\Controllers\HomeController;
 use App\Http\Controllers\MapCollectionController;
 use App\Http\Controllers\PointController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return auth()->check()
-        ? redirect()->route('collections.index')
-        : redirect()->route('login');
-});
+Route::get('/', [HomeController::class, 'index'])->name('home');
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');

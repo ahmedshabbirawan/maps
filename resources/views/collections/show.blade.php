@@ -21,6 +21,8 @@
             <ul class="dropdown-menu">
                 <li><a class="dropdown-item export-link" href="{{ route('collections.export', [$collection, 'json']) }}" data-format="json">Export JSON</a></li>
                 <li><a class="dropdown-item export-link" href="{{ route('collections.export', [$collection, 'csv']) }}" data-format="csv">Export CSV</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><button type="button" class="dropdown-item" id="btnGoogleDirections"><i class="bi bi-signpost-split"></i> Google Directions</button></li>
             </ul>
         </div>
         <button type="button" class="btn btn-primary" id="btnAddPoint">
@@ -42,44 +44,61 @@
 <div class="card shadow-sm mb-4">
     <div class="card-header bg-white d-flex justify-content-between align-items-center">
         <strong><i class="bi bi-funnel"></i> Filter Points</strong>
-        <button type="button" class="btn btn-sm btn-outline-secondary" id="btnResetFilters">Reset</button>
+        <button type="button"
+                class="btn btn-sm btn-outline-primary"
+                id="btnToggleFilters"
+                data-bs-toggle="collapse"
+                data-bs-target="#filterPointsBody"
+                aria-expanded="false"
+                aria-controls="filterPointsBody">
+            <i class="bi bi-chevron-down"></i> Show
+        </button>
     </div>
-    <div class="card-body">
-        <div id="filterRows">
-            <div class="row g-2 align-items-end filter-row mb-2">
+    <div class="collapse" id="filterPointsBody">
+        <div class="card-body">
+            <div class="row g-2 align-items-end mb-3">
                 <div class="col-md-4">
-                    <label class="form-label small mb-1">Attribute</label>
-                    <select class="form-select form-select-sm filter-attribute">
-                        <option value="">— Select attribute —</option>
-                        @foreach($filterableAttributes as $attr)
-                            <option value="{{ $attr['id'] }}" data-type="{{ $attr['type'] }}">{{ $attr['name'] }} ({{ $attr['type'] }})</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="col-md-2 filter-operator-col">
-                    <label class="form-label small mb-1">Operator</label>
-                    <select class="form-select form-select-sm filter-operator">
-                        <option value="=">=</option>
-                    </select>
-                </div>
-                <div class="col-md-4 filter-value-col">
-                    <label class="form-label small mb-1">Value</label>
-                    <input type="text" class="form-control form-control-sm filter-value" placeholder="Value">
-                </div>
-                <div class="col-md-2">
-                    <button type="button" class="btn btn-sm btn-outline-danger w-100 remove-filter d-none">Remove</button>
+                    <label class="form-label small mb-1" for="filterName">Point name</label>
+                    <input type="text" class="form-control form-control-sm" id="filterName" placeholder="Search by name">
                 </div>
             </div>
+            <div id="filterRows">
+                <div class="row g-2 align-items-end filter-row mb-2">
+                    <div class="col-md-4">
+                        <label class="form-label small mb-1">Attribute</label>
+                        <select class="form-select form-select-sm filter-attribute">
+                            <option value="">— Select attribute —</option>
+                            @foreach($filterableAttributes as $attr)
+                                <option value="{{ $attr['id'] }}" data-type="{{ $attr['type'] }}">{{ $attr['name'] }} ({{ $attr['type'] }})</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-2 filter-operator-col">
+                        <label class="form-label small mb-1">Operator</label>
+                        <select class="form-select form-select-sm filter-operator">
+                            <option value="=">=</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4 filter-value-col">
+                        <label class="form-label small mb-1">Value</label>
+                        <input type="text" class="form-control form-control-sm filter-value" placeholder="Value">
+                    </div>
+                    <div class="col-md-2">
+                        <button type="button" class="btn btn-sm btn-outline-danger w-100 remove-filter d-none">Remove</button>
+                    </div>
+                </div>
+            </div>
+            <div class="d-flex gap-2 mt-2">
+                <button type="button" class="btn btn-sm btn-outline-primary" id="btnAddFilter">
+                    <i class="bi bi-plus"></i> Add Filter
+                </button>
+                <button type="button" class="btn btn-sm btn-primary" id="btnApplyFilters">
+                    <i class="bi bi-search"></i> Apply Filters
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="btnResetFilters">Reset</button>
+            </div>
+            <p class="text-muted small mb-0 mt-2">Search by point name and/or filter by custom attribute values. Map and table update via AJAX.</p>
         </div>
-        <div class="d-flex gap-2 mt-2">
-            <button type="button" class="btn btn-sm btn-outline-primary" id="btnAddFilter">
-                <i class="bi bi-plus"></i> Add Filter
-            </button>
-            <button type="button" class="btn btn-sm btn-primary" id="btnApplyFilters">
-                <i class="bi bi-search"></i> Apply Filters
-            </button>
-        </div>
-        <p class="text-muted small mb-0 mt-2">Filter by custom attribute values. Map and table update via AJAX.</p>
     </div>
 </div>
 
@@ -88,12 +107,18 @@
         <div class="card shadow-sm h-100">
             <div class="card-header bg-white d-flex justify-content-between align-items-center">
                 <strong><i class="bi bi-table"></i> Points</strong>
-                <span class="badge bg-primary" id="pointsCount">{{ $collection->points->count() }}</span>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-secondary d-none" id="selectedCount">0 selected</span>
+                    <span class="badge bg-primary" id="pointsCount">{{ $collection->points->count() }}</span>
+                </div>
             </div>
             <div class="card-body p-0 table-responsive" style="max-height: 520px; overflow-y: auto;">
                 <table class="table table-sm table-hover mb-0" id="pointsTable">
                     <thead class="table-light sticky-top">
                         <tr>
+                            <th class="text-center" style="width: 2.5rem;">
+                                <input type="checkbox" class="form-check-input" id="selectAllPoints" title="Select all">
+                            </th>
                             <th>Name</th>
                             <th>Lat</th>
                             <th>Lng</th>
@@ -113,6 +138,9 @@
                                     data-attr-{{ $attribute->id }}="{{ $point->valueForAttribute($attribute->id) }}"
                                 @endforeach
                             >
+                                <td class="text-center">
+                                    <input type="checkbox" class="form-check-input point-select" value="{{ $point->id }}">
+                                </td>
                                 <td>{{ $point->name }}</td>
                                 <td>{{ $point->lat }}</td>
                                 <td>{{ $point->lng }}</td>
@@ -264,6 +292,7 @@
     let pickerMap, pickerMarker, pickerMapReady = false;
     let searchTimer = null;
     let activeFilters = [];
+    const selectedPointIds = new Set();
 
     const defaultCenter = pointsData.length
         ? [pointsData[0].lat, pointsData[0].lng]
@@ -377,6 +406,10 @@
     function buildFilterQuery() {
         const filters = collectFilters();
         const params = new URLSearchParams();
+        const name = $('#filterName').val().trim();
+        if (name) {
+            params.append('name', name);
+        }
         filters.forEach(function (f, i) {
             params.append('filters[' + i + '][attribute_id]', f.attribute_id);
             params.append('filters[' + i + '][operator]', f.operator);
@@ -390,12 +423,76 @@
         return params.toString();
     }
 
+    function getSelectedPointIds() {
+        return Array.from(selectedPointIds);
+    }
+
+    function getSelectedPointsInOrder() {
+        const ordered = [];
+        $('#pointsTable tbody tr').each(function () {
+            const id = parseInt($(this).data('point-id'), 10);
+            if (selectedPointIds.has(id)) {
+                ordered.push({
+                    id: id,
+                    lat: parseFloat($(this).data('lat')),
+                    lng: parseFloat($(this).data('lng')),
+                    name: $(this).data('name'),
+                });
+            }
+        });
+        return ordered;
+    }
+
+    function updateSelectionUi() {
+        const count = selectedPointIds.size;
+        const $badge = $('#selectedCount');
+        if (count > 0) {
+            $badge.text(count + ' selected').removeClass('d-none');
+        } else {
+            $badge.addClass('d-none');
+        }
+
+        const $rows = $('#pointsTable tbody tr');
+        const visibleCount = $rows.length;
+        const selectedVisible = $rows.filter(function () {
+            return selectedPointIds.has(parseInt($(this).data('point-id'), 10));
+        }).length;
+
+        const $selectAll = $('#selectAllPoints');
+        $selectAll.prop('checked', visibleCount > 0 && selectedVisible === visibleCount);
+        $selectAll.prop('indeterminate', selectedVisible > 0 && selectedVisible < visibleCount);
+    }
+
+    function buildExportQuery() {
+        const params = new URLSearchParams(buildFilterQuery());
+        getSelectedPointIds().forEach(function (id) {
+            params.append('point_ids[]', id);
+        });
+        return params.toString();
+    }
+
     function updateExportLinks() {
-        const qs = buildFilterQuery();
+        const qs = buildExportQuery();
         $('.export-link').each(function () {
             const format = $(this).data('format');
             $(this).attr('href', urls.exportBase + '/' + format + (qs ? '?' + qs : ''));
         });
+    }
+
+    function buildGoogleDirectionsUrl(points) {
+        const path = points.map(function (p) {
+            return p.lat + ',' + p.lng;
+        }).join('/');
+        return 'https://www.google.com/maps/dir/' + path;
+    }
+
+    function openGoogleDirections() {
+        const points = getSelectedPointsInOrder();
+        if (points.length < 2) {
+            alert('Select at least 2 points to open Google Directions.');
+            return;
+        }
+        window.open(buildGoogleDirectionsUrl(points), '_blank');
     }
 
     function applyFilters() {
@@ -416,6 +513,7 @@
             });
             renderMarkers();
             $('#pointsCount').text(res.count);
+            updateExportLinks();
         });
     }
 
@@ -429,13 +527,23 @@
         const $tbody = $('#pointsTable tbody').empty();
         $('#emptyPointsMsg').remove();
 
+        const visibleIds = new Set(points.map(function (p) { return p.id; }));
+        selectedPointIds.forEach(function (id) {
+            if (!visibleIds.has(id)) {
+                selectedPointIds.delete(id);
+            }
+        });
+
         if (!points.length) {
             $('#pointsTable').after('<p class="text-muted text-center py-4 mb-0" id="emptyPointsMsg">No points match the current filters.</p>');
+            updateSelectionUi();
             return;
         }
 
         points.forEach(function (point) {
-            let cells = '<td>' + escapeHtml(point.name) + '</td>';
+            const checked = selectedPointIds.has(point.id) ? ' checked' : '';
+            let cells = '<td class="text-center"><input type="checkbox" class="form-check-input point-select" value="' + point.id + '"' + checked + '></td>';
+            cells += '<td>' + escapeHtml(point.name) + '</td>';
             cells += '<td>' + point.lat + '</td><td>' + point.lng + '</td>';
             visibleAttributes.forEach(function (attr) {
                 const val = point.attributes[attr.id]?.value;
@@ -452,6 +560,7 @@
             });
             $tbody.append('<tr' + dataAttrs + '>' + cells + '</tr>');
         });
+        updateSelectionUi();
     }
 
     function initMap() {
@@ -575,6 +684,7 @@
     });
 
     $('#btnResetFilters').on('click', function () {
+        $('#filterName').val('');
         $('#filterRows').html($('#filterRows .filter-row').first().clone());
         $('#filterRows .filter-row').find('.filter-attribute').val('');
         $('#filterRows .filter-row').find('.remove-filter').addClass('d-none');
@@ -632,6 +742,54 @@
 
     $('#btnApplyFilters').on('click', applyFilters);
 
+    $('#filterPointsBody').on('show.bs.collapse', function () {
+        $('#btnToggleFilters').html('<i class="bi bi-chevron-up"></i> Hide');
+    }).on('hide.bs.collapse', function () {
+        $('#btnToggleFilters').html('<i class="bi bi-chevron-down"></i> Show');
+    });
+
+    $('#filterName').on('keydown', function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            applyFilters();
+        }
+    });
+
+    $('#selectAllPoints').on('change', function () {
+        const checked = $(this).prop('checked');
+        $('#pointsTable tbody tr').each(function () {
+            const id = parseInt($(this).data('point-id'), 10);
+            if (checked) {
+                selectedPointIds.add(id);
+            } else {
+                selectedPointIds.delete(id);
+            }
+            $(this).find('.point-select').prop('checked', checked);
+        });
+        updateSelectionUi();
+        updateExportLinks();
+    });
+
+    $(document).on('change', '.point-select', function () {
+        const id = parseInt($(this).val(), 10);
+        if ($(this).prop('checked')) {
+            selectedPointIds.add(id);
+        } else {
+            selectedPointIds.delete(id);
+        }
+        updateSelectionUi();
+        updateExportLinks();
+    });
+
+    $('#btnGoogleDirections').on('click', openGoogleDirections);
+
+    $('.export-link').on('click', function (e) {
+        if (selectedPointIds.size === 0) {
+            e.preventDefault();
+            alert('Select one or more points to export.');
+        }
+    });
+
     $('#locationSearch').on('input', function () {
         const query = $(this).val().trim();
         clearTimeout(searchTimer);
@@ -670,6 +828,7 @@
 
     $(document).ready(function () {
         initMap();
+        updateSelectionUi();
         updateExportLinks();
         setTimeout(function () { map.invalidateSize(); }, 300);
     });

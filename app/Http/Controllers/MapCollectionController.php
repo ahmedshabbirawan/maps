@@ -157,6 +157,16 @@ class MapCollectionController extends Controller
 
         $this->attributeFilter->apply($query, $collection, $request);
 
+        $pointIds = collect($request->input('point_ids', []))
+            ->filter(fn ($id) => is_numeric($id))
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        if ($pointIds->isNotEmpty()) {
+            $query->whereIn('id', $pointIds);
+        }
+
         $rows = $query->get()->map(function ($point) use ($visibleAttributes) {
             $row = [
                 'id' => $point->id,
