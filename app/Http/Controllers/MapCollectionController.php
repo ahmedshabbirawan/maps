@@ -26,7 +26,13 @@ class MapCollectionController extends Controller
             ->latest()
             ->get();
 
-        return view('collections.index', compact('collections'));
+        $stats = [
+            'collections' => $collections->count(),
+            'points' => (int) $collections->sum('points_count'),
+            'attributes' => (int) $collections->sum('attributes_count'),
+        ];
+
+        return view('collections.index', compact('collections', 'stats'));
     }
 
     public function create(): View

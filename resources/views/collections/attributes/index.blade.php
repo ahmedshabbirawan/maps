@@ -2,36 +2,37 @@
 
 @section('title', $collection->name.' — Attributes')
 
-@section('content')
-<div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
-    <div>
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb mb-1">
-                <li class="breadcrumb-item"><a href="{{ route('collections.show', $collection) }}">{{ $collection->name }}</a></li>
-                <li class="breadcrumb-item active">Attributes</li>
-            </ol>
-        </nav>
-        <h1 class="h3 mb-0">Custom Attributes</h1>
-        <p class="text-muted mb-0 small">Define polymorphic fields for points and future entities.</p>
-    </div>
-    <a href="{{ route('collections.show', $collection) }}" class="btn btn-outline-primary">
-        <i class="bi bi-map"></i> Back to Map
-    </a>
-</div>
+@section('breadcrumb')
+    <li><a href="{{ route('collections.index') }}">Dashboard</a></li>
+    <li class="separator">/</li>
+    <li><a href="{{ route('collections.show', $collection) }}">{{ $collection->name }}</a></li>
+    <li class="separator">/</li>
+    <li>Attributes</li>
+@endsection
 
-<div class="card shadow-sm mb-4">
-    <div class="card-header bg-white">
-        <strong><i class="bi bi-plus-circle"></i> Add Attribute</strong>
+@section('page-title', 'Custom Attributes')
+@section('page-subtitle', 'Define polymorphic fields for points and future entities')
+
+@section('page-actions')
+    <a href="{{ route('collections.show', $collection) }}" class="btn btn-kt-primary btn-sm">
+        <i class="bi bi-map me-1"></i> Back to Map
+    </a>
+@endsection
+
+@section('content')
+<div class="kt-card mb-4">
+    <div class="kt-card-header">
+        <h2 class="card-title"><i class="bi bi-plus-circle text-primary"></i> Add Attribute</h2>
     </div>
-    <div class="card-body">
+    <div class="kt-card-body">
         <form id="createAttributeForm" class="row g-3 align-items-end">
             @csrf
             <div class="col-md-4">
-                <label class="form-label">Name</label>
+                <label class="form-label fw-semibold">Name</label>
                 <input type="text" name="name" class="form-control" placeholder="e.g. Monthly Bill" required>
             </div>
             <div class="col-md-3">
-                <label class="form-label">Type</label>
+                <label class="form-label fw-semibold">Type</label>
                 <select name="type" class="form-select">
                     <option value="string">Text</option>
                     <option value="number">Number</option>
@@ -46,21 +47,21 @@
                 </div>
             </div>
             <div class="col-md-2">
-                <button type="submit" class="btn btn-primary w-100">Add</button>
+                <button type="submit" class="btn btn-kt-primary w-100">Add</button>
             </div>
         </form>
     </div>
 </div>
 
-<div class="card shadow-sm">
-    <div class="card-header bg-white d-flex justify-content-between align-items-center">
-        <strong><i class="bi bi-table"></i> Attribute Definitions</strong>
-        <span class="badge bg-secondary">{{ $attributes->count() }}</span>
+<div class="kt-card">
+    <div class="kt-card-header">
+        <h2 class="card-title"><i class="bi bi-table text-primary"></i> Attribute Definitions</h2>
+        <span class="kt-badge kt-badge-secondary">{{ $attributes->count() }}</span>
     </div>
-    <div class="card-body p-0">
+    <div class="kt-card-body p-0">
         <div class="table-responsive">
-            <table class="table table-hover mb-0" id="attributesTable">
-                <thead class="table-light">
+            <table class="table kt-table mb-0" id="attributesTable">
+                <thead>
                     <tr>
                         <th>Name</th>
                         <th>Slug</th>
@@ -72,9 +73,9 @@
                 <tbody>
                     @forelse($attributes as $attribute)
                         <tr data-attribute-id="{{ $attribute->id }}">
-                            <td class="attr-name">{{ $attribute->name }}</td>
+                            <td class="attr-name fw-semibold">{{ $attribute->name }}</td>
                             <td><code class="small">{{ $attribute->slug }}</code></td>
-                            <td><span class="badge bg-info text-dark attr-type">{{ $attribute->type }}</span></td>
+                            <td><span class="kt-badge kt-badge-primary attr-type">{{ $attribute->type }}</span></td>
                             <td class="text-center">
                                 <div class="form-check form-switch d-inline-block">
                                     <input class="form-check-input visibility-toggle" type="checkbox"
@@ -83,14 +84,14 @@
                                 </div>
                             </td>
                             <td class="text-end text-nowrap">
-                                <button type="button" class="btn btn-sm btn-outline-primary edit-attribute"
+                                <button type="button" class="btn btn-sm btn-kt-light edit-attribute"
                                         data-id="{{ $attribute->id }}"
                                         data-name="{{ $attribute->name }}"
                                         data-type="{{ $attribute->type }}"
                                         data-visible="{{ $attribute->is_visible ? '1' : '0' }}">
                                     <i class="bi bi-pencil"></i>
                                 </button>
-                                <button type="button" class="btn btn-sm btn-outline-danger delete-attribute"
+                                <button type="button" class="btn btn-sm btn-kt-light text-danger delete-attribute"
                                         data-id="{{ $attribute->id }}">
                                     <i class="bi bi-trash"></i>
                                 </button>
@@ -98,7 +99,7 @@
                         </tr>
                     @empty
                         <tr id="noAttributesRow">
-                            <td colspan="5" class="text-muted text-center py-4">No attributes defined yet.</td>
+                            <td colspan="5" class="text-muted text-center py-5">No attributes defined yet.</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -112,17 +113,17 @@
         <div class="modal-content">
             <form id="editAttributeForm">
                 <div class="modal-header">
-                    <h5 class="modal-title">Edit Attribute</h5>
+                    <h5 class="modal-title fw-bold">Edit Attribute</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <input type="hidden" id="editAttributeId">
                     <div class="mb-3">
-                        <label class="form-label">Name</label>
+                        <label class="form-label fw-semibold">Name</label>
                         <input type="text" name="name" id="editAttributeName" class="form-control" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Type</label>
+                        <label class="form-label fw-semibold">Type</label>
                         <select name="type" id="editAttributeType" class="form-select">
                             <option value="string">Text</option>
                             <option value="number">Number</option>
@@ -136,8 +137,8 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                    <button type="button" class="btn btn-kt-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-kt-primary">Save Changes</button>
                 </div>
             </form>
         </div>
@@ -171,14 +172,14 @@
                 $('#noAttributesRow').remove();
                 const a = res.attribute;
                 const row = '<tr data-attribute-id="' + a.id + '">' +
-                    '<td class="attr-name">' + escapeHtml(a.name) + '</td>' +
+                    '<td class="attr-name fw-semibold">' + escapeHtml(a.name) + '</td>' +
                     '<td><code class="small">' + escapeHtml(a.slug) + '</code></td>' +
-                    '<td><span class="badge bg-info text-dark attr-type">' + escapeHtml(a.type) + '</span></td>' +
+                    '<td><span class="kt-badge kt-badge-primary attr-type">' + escapeHtml(a.type) + '</span></td>' +
                     '<td class="text-center"><div class="form-check form-switch d-inline-block">' +
                     '<input class="form-check-input visibility-toggle" type="checkbox" data-id="' + a.id + '" ' + (a.is_visible ? 'checked' : '') + '></div></td>' +
                     '<td class="text-end text-nowrap">' +
-                    '<button type="button" class="btn btn-sm btn-outline-primary edit-attribute" data-id="' + a.id + '" data-name="' + escapeHtml(a.name) + '" data-type="' + a.type + '" data-visible="' + (a.is_visible ? '1' : '0') + '"><i class="bi bi-pencil"></i></button> ' +
-                    '<button type="button" class="btn btn-sm btn-outline-danger delete-attribute" data-id="' + a.id + '"><i class="bi bi-trash"></i></button>' +
+                    '<button type="button" class="btn btn-sm btn-kt-light edit-attribute" data-id="' + a.id + '" data-name="' + escapeHtml(a.name) + '" data-type="' + a.type + '" data-visible="' + (a.is_visible ? '1' : '0') + '"><i class="bi bi-pencil"></i></button> ' +
+                    '<button type="button" class="btn btn-sm btn-kt-light text-danger delete-attribute" data-id="' + a.id + '"><i class="bi bi-trash"></i></button>' +
                     '</td></tr>';
                 $('#attributesTable tbody').append(row);
                 $('#createAttributeForm')[0].reset();
@@ -255,7 +256,7 @@
                 $row.remove();
                 if (!$('#attributesTable tbody tr').length) {
                     $('#attributesTable tbody').append(
-                        '<tr id="noAttributesRow"><td colspan="5" class="text-muted text-center py-4">No attributes defined yet.</td></tr>'
+                        '<tr id="noAttributesRow"><td colspan="5" class="text-muted text-center py-5">No attributes defined yet.</td></tr>'
                     );
                 }
             },

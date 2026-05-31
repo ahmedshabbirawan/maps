@@ -2,53 +2,83 @@
 
 @section('title', $collection->name)
 
-@section('content')
-<div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
-    <div>
-        <h1 class="h3 mb-1">{{ $collection->name }}</h1>
-        @if($collection->description)
-            <p class="text-muted mb-0">{{ $collection->description }}</p>
-        @endif
-    </div>
-    <div class="d-flex flex-wrap gap-2">
-        <a href="{{ route('collections.attributes.index', $collection) }}" class="btn btn-outline-dark">
-            <i class="bi bi-tags"></i> Manage Attributes
-        </a>
-        <div class="btn-group">
-            <button type="button" class="btn btn-outline-success dropdown-toggle" data-bs-toggle="dropdown">
-                <i class="bi bi-download"></i> Export
-            </button>
-            <ul class="dropdown-menu">
-                <li><a class="dropdown-item export-link" href="{{ route('collections.export', [$collection, 'json']) }}" data-format="json">Export JSON</a></li>
-                <li><a class="dropdown-item export-link" href="{{ route('collections.export', [$collection, 'csv']) }}" data-format="csv">Export CSV</a></li>
-                <li><hr class="dropdown-divider"></li>
-                <li><button type="button" class="dropdown-item" id="btnGoogleDirections"><i class="bi bi-signpost-split"></i> Google Directions</button></li>
-            </ul>
-        </div>
-        <button type="button" class="btn btn-primary" id="btnAddPoint">
-            <i class="bi bi-plus-lg"></i> Add Point
+@section('breadcrumb')
+    <li><a href="{{ route('collections.index') }}">Dashboard</a></li>
+    <li class="separator">/</li>
+    <li>{{ $collection->name }}</li>
+@endsection
+
+@section('page-title', $collection->name)
+@section('page-subtitle', $collection->description ?: 'Manage points, filters, and map view')
+
+@section('page-actions')
+    <a href="{{ route('collections.attributes.index', $collection) }}" class="btn btn-kt-light btn-sm">
+        <i class="bi bi-tags me-1"></i> Attributes
+    </a>
+    <div class="btn-group">
+        <button type="button" class="btn btn-kt-light btn-sm dropdown-toggle" data-bs-toggle="dropdown">
+            <i class="bi bi-download me-1"></i> Export
         </button>
-        <a href="{{ route('contact.create') }}" class="btn btn-outline-info">
-            <i class="bi bi-chat-dots"></i> Contact
-        </a>
-        <a href="{{ route('collections.edit', $collection) }}" class="btn btn-outline-secondary">
-            <i class="bi bi-pencil"></i> Edit
-        </a>
-        <form action="{{ route('collections.destroy', $collection) }}" method="POST"
-              onsubmit="return confirm('Delete this collection and all its points?');">
-            @csrf
-            @method('DELETE')
-            <button type="submit" class="btn btn-outline-danger"><i class="bi bi-trash"></i></button>
-        </form>
+        <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
+            <li><a class="dropdown-item export-link" href="{{ route('collections.export', [$collection, 'json']) }}" data-format="json">Export JSON</a></li>
+            <li><a class="dropdown-item export-link" href="{{ route('collections.export', [$collection, 'csv']) }}" data-format="csv">Export CSV</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><button type="button" class="dropdown-item" id="btnGoogleDirections"><i class="bi bi-signpost-split me-2"></i> Google Directions</button></li>
+        </ul>
+    </div>
+    <button type="button" class="btn btn-kt-primary btn-sm" id="btnAddPoint">
+        <i class="bi bi-plus-lg me-1"></i> Add Point
+    </button>
+    <a href="{{ route('collections.edit', $collection) }}" class="btn btn-kt-light btn-sm" title="Edit collection">
+        <i class="bi bi-pencil"></i>
+    </a>
+    <form action="{{ route('collections.destroy', $collection) }}" method="POST" class="d-inline"
+          onsubmit="return confirm('Delete this collection and all its points?');">
+        @csrf
+        @method('DELETE')
+        <button type="submit" class="btn btn-kt-light btn-sm text-danger" title="Delete collection">
+            <i class="bi bi-trash"></i>
+        </button>
+    </form>
+@endsection
+
+@section('content')
+<div class="row g-3 mb-4">
+    <div class="col-sm-4">
+        <div class="stat-widget py-3">
+            <div class="stat-widget-icon primary"><i class="bi bi-geo-alt"></i></div>
+            <div>
+                <div class="stat-widget-value" id="statPointsCount">{{ $collection->points->count() }}</div>
+                <div class="stat-widget-label">Points on map</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-4">
+        <div class="stat-widget py-3">
+            <div class="stat-widget-icon info"><i class="bi bi-tags"></i></div>
+            <div>
+                <div class="stat-widget-value">{{ $collection->attributes->count() }}</div>
+                <div class="stat-widget-label">Custom attributes</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-4">
+        <div class="stat-widget py-3">
+            <div class="stat-widget-icon success"><i class="bi bi-eye"></i></div>
+            <div>
+                <div class="stat-widget-value">{{ $collection->attributes->where('is_visible', true)->count() }}</div>
+                <div class="stat-widget-label">Visible on export</div>
+            </div>
+        </div>
     </div>
 </div>
 
 {{-- Dynamic filter builder --}}
-<div class="card shadow-sm mb-4">
-    <div class="card-header bg-white d-flex justify-content-between align-items-center">
-        <strong><i class="bi bi-funnel"></i> Filter Points</strong>
+<div class="kt-card mb-4">
+    <div class="kt-card-header">
+        <h2 class="card-title"><i class="bi bi-funnel text-primary"></i> Filter Points</h2>
         <button type="button"
-                class="btn btn-sm btn-outline-primary"
+                class="btn btn-kt-light btn-sm"
                 id="btnToggleFilters"
                 data-bs-toggle="collapse"
                 data-bs-target="#filterPointsBody"
@@ -58,7 +88,7 @@
         </button>
     </div>
     <div class="collapse" id="filterPointsBody">
-        <div class="card-body">
+        <div class="kt-card-body">
             <div class="row g-2 align-items-end mb-3">
                 <div class="col-md-4">
                     <label class="form-label small mb-1" for="filterName">Point name</label>
@@ -92,32 +122,32 @@
                 </div>
             </div>
             <div class="d-flex gap-2 mt-2">
-                <button type="button" class="btn btn-sm btn-outline-primary" id="btnAddFilter">
+                <button type="button" class="btn btn-kt-light btn-sm" id="btnAddFilter">
                     <i class="bi bi-plus"></i> Add Filter
                 </button>
-                <button type="button" class="btn btn-sm btn-primary" id="btnApplyFilters">
+                <button type="button" class="btn btn-kt-primary btn-sm" id="btnApplyFilters">
                     <i class="bi bi-search"></i> Apply Filters
                 </button>
-                <button type="button" class="btn btn-sm btn-outline-secondary" id="btnResetFilters">Reset</button>
+                <button type="button" class="btn btn-kt-light btn-sm" id="btnResetFilters">Reset</button>
             </div>
             <p class="text-muted small mb-0 mt-2">Search by point name and/or filter by custom attribute values. Map and table update via AJAX.</p>
         </div>
     </div>
 </div>
 
-<div class="row g-3 split-map">
+<div class="row g-4 split-map">
     <div class="col-lg-6">
-        <div class="card shadow-sm h-100">
-            <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                <strong><i class="bi bi-table"></i> Points</strong>
+        <div class="kt-card h-100">
+            <div class="kt-card-header">
+                <h2 class="card-title"><i class="bi bi-table text-primary"></i> Points</h2>
                 <div class="d-flex align-items-center gap-2">
-                    <span class="badge bg-secondary d-none" id="selectedCount">0 selected</span>
-                    <span class="badge bg-primary" id="pointsCount">{{ $collection->points->count() }}</span>
+                    <span class="kt-badge kt-badge-secondary d-none" id="selectedCount">0 selected</span>
+                    <span class="kt-badge kt-badge-primary" id="pointsCount">{{ $collection->points->count() }}</span>
                 </div>
             </div>
-            <div class="card-body p-0 table-responsive" style="max-height: 520px; overflow-y: auto;">
-                <table class="table table-sm table-hover mb-0" id="pointsTable">
-                    <thead class="table-light sticky-top">
+            <div class="kt-card-body p-0 table-responsive" style="max-height: 520px; overflow-y: auto;">
+                <table class="table table-sm kt-table mb-0" id="pointsTable">
+                    <thead class="sticky-top">
                         <tr>
                             <th class="text-center" style="width: 2.5rem;">
                                 <input type="checkbox" class="form-check-input" id="selectAllPoints" title="Select all">
@@ -165,11 +195,11 @@
         </div>
     </div>
     <div class="col-lg-6">
-        <div class="card shadow-sm h-100">
-            <div class="card-header bg-white">
-                <strong><i class="bi bi-map"></i> Map View</strong>
+        <div class="kt-card h-100">
+            <div class="kt-card-header">
+                <h2 class="card-title"><i class="bi bi-map text-primary"></i> Map View</h2>
             </div>
-            <div class="card-body p-2">
+            <div class="kt-card-body p-2">
                 <div id="map"></div>
             </div>
         </div>
@@ -258,31 +288,13 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary" id="pointSubmitBtn">Save Point</button>
+                    <button type="submit" class="btn btn-kt-primary" id="pointSubmitBtn">Save Point</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 @endsection
-
-@push('styles')
-<style>
-    #pickerMap { height: 320px; border-radius: .375rem; z-index: 0; }
-    .location-search-results {
-        position: absolute;
-        top: 100%;
-        left: 0;
-        right: 0;
-        z-index: 1060;
-        max-height: 220px;
-        overflow-y: auto;
-        box-shadow: 0 .5rem 1rem rgba(0,0,0,.15);
-    }
-    .location-search-results .list-group-item { cursor: pointer; font-size: .875rem; }
-    .location-search-results .list-group-item:hover { background-color: #f8f9fa; }
-</style>
-@endpush
 
 @push('scripts')
 <script>
@@ -516,6 +528,7 @@
             });
             renderMarkers();
             $('#pointsCount').text(res.count);
+            $('#statPointsCount').text(res.count);
             updateExportLinks();
         });
     }
