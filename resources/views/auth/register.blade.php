@@ -18,6 +18,14 @@
                         @error('name')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>
                     <div class="mb-3">
+                        <label for="username" class="form-label">Username</label>
+                        <input type="text" name="username" id="username" class="form-control @error('username') is-invalid @enderror"
+                               value="{{ old('username') }}" required autocomplete="username"
+                               pattern="[a-zA-Z0-9_]+" minlength="3" maxlength="30">
+                        <div class="form-text">Letters, numbers, and underscores only (3–30 characters).</div>
+                        @error('username')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                    </div>
+                    <div class="mb-3">
                         <label for="email" class="form-label">Email</label>
                         <input type="email" name="email" id="email" class="form-control @error('email') is-invalid @enderror"
                                value="{{ old('email') }}" required>
