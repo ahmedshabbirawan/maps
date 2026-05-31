@@ -60,7 +60,11 @@
                 @endforeach
             </nav>
 
-            <form action="{{ route('logout') }}" method="POST" class="mt-3">
+            <a href="{{ route('contact.create') }}" class="btn btn-sm btn-outline-light mb-2">
+                <i class="bi bi-chat-dots"></i> Contact / Suggestions
+            </a>
+
+            <form action="{{ route('logout') }}" method="POST" class="mt-1">
                 @csrf
                 <button type="submit" class="btn btn-sm btn-outline-secondary w-100">
                     <i class="bi bi-box-arrow-right"></i> Logout

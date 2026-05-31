@@ -25,6 +25,7 @@
                 </li>
             </ul>
             <div class="d-flex align-items-center gap-3">
+                <a href="{{ route('contact.create') }}" class="nav-link px-0">Contact</a>
                 <a href="{{ route('login') }}" class="nav-link px-0">Sign In</a>
                 <a href="{{ route('register') }}" class="btn btn-home-accent">Get Started</a>
             </div>
@@ -189,6 +190,7 @@
                 <ul class="list-unstyled small">
                     <li class="mb-2"><a href="{{ route('login') }}">Sign in</a></li>
                     <li class="mb-2"><a href="{{ route('register') }}">Register</a></li>
+                    <li class="mb-2"><a href="{{ route('contact.create') }}">Contact / Suggestions</a></li>
                 </ul>
             </div>
             <div class="col-lg-4">

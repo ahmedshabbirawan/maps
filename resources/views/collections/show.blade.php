@@ -28,6 +28,9 @@
         <button type="button" class="btn btn-primary" id="btnAddPoint">
             <i class="bi bi-plus-lg"></i> Add Point
         </button>
+        <a href="{{ route('contact.create') }}" class="btn btn-outline-info">
+            <i class="bi bi-chat-dots"></i> Contact
+        </a>
         <a href="{{ route('collections.edit', $collection) }}" class="btn btn-outline-secondary">
             <i class="bi bi-pencil"></i> Edit
         </a>

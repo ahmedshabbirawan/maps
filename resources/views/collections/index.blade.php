@@ -8,9 +8,14 @@
         <h1 class="h3 mb-1">Map Collections</h1>
         <p class="text-muted mb-0">Manage delivery routes, customer locations, and custom fields.</p>
     </div>
-    <a href="{{ route('collections.create') }}" class="btn btn-primary">
-        <i class="bi bi-plus-lg"></i> New Collection
-    </a>
+    <div class="d-flex flex-wrap gap-2">
+        <a href="{{ route('contact.create') }}" class="btn btn-outline-info">
+            <i class="bi bi-chat-dots"></i> Contact
+        </a>
+        <a href="{{ route('collections.create') }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg"></i> New Collection
+        </a>
+    </div>
 </div>
 
 @if($collections->isEmpty())

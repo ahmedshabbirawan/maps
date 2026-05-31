@@ -123,4 +123,15 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Admin Email
+    |--------------------------------------------------------------------------
+    |
+    | Receives notifications for contact form submissions and suggestions.
+    |
+    */
+
+    'admin_email' => env('ADMIN_EMAIL'),
+
 ];
