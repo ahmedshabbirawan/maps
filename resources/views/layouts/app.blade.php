@@ -47,6 +47,13 @@
                     <p class="small text-muted px-3 mb-0">No collections yet</p>
                 @endforelse
 
+                <div class="menu-section-label">Account</div>
+                <a href="{{ route('profile.edit') }}"
+                   class="menu-link {{ request()->routeIs('profile.*') ? 'active' : '' }}">
+                    <span class="menu-icon"><i class="bi bi-person"></i></span>
+                    Profile
+                </a>
+
                 <div class="menu-section-label">Support</div>
                 <a href="{{ route('contact.create') }}"
                    class="menu-link {{ request()->routeIs('contact.*') ? 'active' : '' }}">
@@ -60,13 +67,13 @@
                     $user = auth()->user();
                     $initials = collect(explode(' ', $user->name))->map(fn ($w) => mb_substr($w, 0, 1))->take(2)->join('');
                 @endphp
-                <div class="user-card">
+                <a href="{{ route('profile.edit') }}" class="user-card text-decoration-none">
                     <div class="user-avatar">{{ strtoupper($initials) }}</div>
                     <div class="min-w-0">
                         <div class="user-name text-truncate">{{ $user->name }}</div>
                         <div class="user-role text-truncate">{{ $user->email }}</div>
                     </div>
-                </div>
+                </a>
                 <form action="{{ route('logout') }}" method="POST">
                     @csrf
                     <button type="submit" class="btn btn-kt-light w-100 btn-sm">
