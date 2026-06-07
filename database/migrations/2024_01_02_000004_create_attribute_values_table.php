@@ -13,12 +13,12 @@ return new class extends Migration
             $table->foreignId('attribute_id')->constrained('attributes')->cascadeOnDelete();
             $table->string('entity_type');
             $table->unsignedBigInteger('entity_id');
-            $table->text('value')->nullable();
+            $table->longText('value')->nullable();
             $table->timestamps();
 
             $table->unique(['attribute_id', 'entity_type', 'entity_id']);
             $table->index(['entity_type', 'entity_id']);
-            $table->index(['attribute_id', 'value']);
+          //  $table->index(['attribute_id', 'value']);
         });
     }
 
