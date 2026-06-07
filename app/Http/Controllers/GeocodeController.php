@@ -15,10 +15,10 @@ class GeocodeController extends Controller
         ]);
 
         $response = Http::withHeaders([
-            'User-Agent' => config('app.name', 'Maps SaaS').' Geocoder (contact@example.com)',
+            // 'User-Agent' => config('app.name', 'Maps SaaS').' Geocoder (contact@example.com)',
             'Accept-Language' => 'en',
         ])->timeout(10)->get('https://nominatim.openstreetmap.org/search', [
-            'format' => 'json',
+            'format' => 'jsonv2',
             'q' => $validated['q'],
             'limit' => 6,
             'addressdetails' => 1,
